@@ -6,6 +6,52 @@ from core.api.vision_handler import VisionHandler
 
 TAG = __name__
 
+def create_app(config=None):
+    """
+    创建 WSGI 兼容的 Web 应用
+    
+    Args:
+        config (dict, optional): 配置字典. 默认为 None.
+    
+    Returns:
+        web.Application: AioHTTP Web 应用
+    """
+    if config is None:
+        from config.settings import load_config
+        config = load_config()
+
+    logger = setup_logging()
+    ota_handler = OTAHandler(config)
+    vision_handler = VisionHandler(config)
+
+    app = web.Application()
+
+    # 添加健康检查路由
+    app.add_routes([
+        web.get("/health", health_check)
+    ])
+
+    # OTA 接口
+    app.add_routes([
+        web.get("/xiaozhi/ota/", ota_handler.handle_get),
+        web.post("/xiaozhi/ota/", ota_handler.handle_post),
+        web.options("/xiaozhi/ota/", ota_handler.handle_post),
+    ])
+
+    # 视觉分析接口
+    app.add_routes([
+        web.get("/mcp/vision/explain", vision_handler.handle_get),
+        web.post("/mcp/vision/explain", vision_handler.handle_post),
+        web.options("/mcp/vision/explain", vision_handler.handle_post),
+    ])
+
+    return app
+
+async def health_check(request):
+    """
+    健康检查端点
+    """
+    return web.Response(text="OK", status=200)
 
 class SimpleHttpServer:
     def __init__(self, config: dict):
