@@ -55,7 +55,7 @@ steps:
         "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:latest",
       ]
 
-  # 部署到 Cloud Run
+  # 部署服务端到 Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "run"
@@ -68,7 +68,20 @@ steps:
       - "--platform"
       - "managed"
       - "--allow-unauthenticated"
+      - "--max-instances"
+      - "1"
+      - "--min-instances"
+      - "1"
+      - "--cpu"
+      - "2"
+      - "--memory"
+      - "4Gi"
+      - "--port"
+      - "8000"
+      - "--set-env-vars"
+      - "PYTHONUNBUFFERED=1"
 
+  # 部署 Web 端到 Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "run"
@@ -81,6 +94,16 @@ steps:
       - "--platform"
       - "managed"
       - "--allow-unauthenticated"
+      - "--max-instances"
+      - "3"
+      - "--min-instances"
+      - "1"
+      - "--cpu"
+      - "1"
+      - "--memory"
+      - "1Gi"
+      - "--port"
+      - "80"
 
 substitutions:
   _REGION: asia-southeast1
