@@ -5,64 +5,65 @@ steps:
       [
         "build",
         "-t",
-        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:$COMMIT_SHA",
-        "-t",
-        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:latest",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/xiaozhi-server:$COMMIT_SHA",
         "-f",
         "Dockerfile-server",
         ".",
       ]
 
-  # 构建 Web 端镜像
+  # 构建 manager-api 镜像
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
         "build",
         "-t",
-        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:$COMMIT_SHA",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/manager-api:$COMMIT_SHA",
+        "-f",
+        "main/manager-api/Dockerfile",
+        "main/manager-api",
+      ]
+
+  # 构建 manager-web 镜像
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
         "-t",
-        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:latest",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/manager-web:$COMMIT_SHA",
         "-f",
         "Dockerfile-web",
-        ".",
+        "main/manager-web",
       ]
 
-  # 推送服务端镜像
+  # 推送镜像
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
         "push",
-        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:$COMMIT_SHA",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/xiaozhi-server:$COMMIT_SHA",
       ]
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
         "push",
-        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:latest",
-      ]
-
-  # 推送 Web 端镜像
-  - name: "gcr.io/cloud-builders/docker"
-    args:
-      [
-        "push",
-        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:$COMMIT_SHA",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/manager-api:$COMMIT_SHA",
       ]
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
         "push",
-        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:latest",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/manager-web:$COMMIT_SHA",
       ]
 
-  # 部署服务端到 Cloud Run
+  # 部署服务到 Cloud Run
+  # 服务端部署
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "run"
       - "deploy"
       - "xiaozhi-server"
       - "--image"
-      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:$COMMIT_SHA"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/xiaozhi-server:$COMMIT_SHA"
       - "--region"
       - "${_REGION}"
       - "--platform"
@@ -79,16 +80,42 @@ steps:
       - "--port"
       - "8000"
       - "--set-env-vars"
-      - "PYTHONUNBUFFERED=1"
+      - "PYTHONUNBUFFERED=1,SERVER_MODE=cloud"
 
-  # 部署 Web 端到 Cloud Run
+  # manager-api 部署
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "run"
       - "deploy"
-      - "xiaozhi-web"
+      - "manager-api"
       - "--image"
-      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:$COMMIT_SHA"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/manager-api:$COMMIT_SHA"
+      - "--region"
+      - "${_REGION}"
+      - "--platform"
+      - "managed"
+      - "--allow-unauthenticated"
+      - "--max-instances"
+      - "1"
+      - "--min-instances"
+      - "1"
+      - "--cpu"
+      - "2"
+      - "--memory"
+      - "2Gi"
+      - "--port"
+      - "8080"
+      - "--set-env-vars"
+      - "SPRING_PROFILES_ACTIVE=prod,DB_HOST=your-cloud-sql-host,REDIS_HOST=your-memorystore-host,SERVER_MODE=cloud"
+
+  # manager-web 部署
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "manager-web"
+      - "--image"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/manager-web:$COMMIT_SHA"
       - "--region"
       - "${_REGION}"
       - "--platform"
@@ -105,12 +132,13 @@ steps:
       - "--port"
       - "80"
 
+# 定义部署区域和仓库
 substitutions:
   _REGION: asia-southeast1
   _REPOSITORY: xiaozhi-server
 
+# 记录构建的镜像
 images:
-  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:$COMMIT_SHA"
-  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:latest"
-  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:$COMMIT_SHA"
-  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:latest"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/xiaozhi-server:$COMMIT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/manager-api:$COMMIT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/manager-web:$COMMIT_SHA"

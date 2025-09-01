@@ -37,6 +37,10 @@ COPY --from=api-builder /app/target/xiaozhi-esp32-api.jar /app/xiaozhi-esp32-api
 # 暴露端口
 EXPOSE 8002
 
+# 添加健康检查
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
+  CMD curl -f http://localhost:80 || exit 1
+
 # 启动脚本
 COPY docs/docker/start.sh /start.sh
 RUN chmod +x /start.sh
