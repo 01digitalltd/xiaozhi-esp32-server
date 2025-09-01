@@ -1,0 +1,93 @@
+steps:
+  # 构建服务端镜像
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:$COMMIT_SHA",
+        "-t",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:latest",
+        "-f",
+        "Dockerfile-server",
+        ".",
+      ]
+
+  # 构建 Web 端镜像
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:$COMMIT_SHA",
+        "-t",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:latest",
+        "-f",
+        "Dockerfile-web",
+        ".",
+      ]
+
+  # 推送服务端镜像
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:$COMMIT_SHA",
+      ]
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:latest",
+      ]
+
+  # 推送 Web 端镜像
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:$COMMIT_SHA",
+      ]
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:latest",
+      ]
+
+  # 部署到 Cloud Run
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "xiaozhi-server"
+      - "--image"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:$COMMIT_SHA"
+      - "--region"
+      - "${_REGION}"
+      - "--platform"
+      - "managed"
+      - "--allow-unauthenticated"
+
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "xiaozhi-web"
+      - "--image"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:$COMMIT_SHA"
+      - "--region"
+      - "${_REGION}"
+      - "--platform"
+      - "managed"
+      - "--allow-unauthenticated"
+
+substitutions:
+  _REGION: asia-southeast1
+  _REPOSITORY: xiaozhi-server
+
+images:
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:$COMMIT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/server:latest"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:$COMMIT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/web:latest"
